@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Jogo da Memória Libras</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <main class="page">
+
+        <section class="hero">
+            <div class="hero-badge">
+                LIBRAS • Desafio Visual
+            </div>
+
+            <h1>Jogo da Memória</h1>
+
+            <p>
+                Combine o emoji com o sinal correspondente em Libras e teste sua memória visual.
+            </p>
+        </section>
+
+        <section class="panel">
+
+            <div class="instruction-box">
+                <strong>Como jogar:</strong>
+                observe as cartas abertas no início, memorize os sinais e encontre o emoji correspondente.
+            </div>
+
+            <div id="avisoMemoria" class="memory-alert">
+                Memorize os sinais!
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <span class="stat-label">Movimentos</span>
+                    <strong id="movimentos">0</strong>
+                </div>
+
+                <div class="stat-card">
+                    <span class="stat-label">Tempo</span>
+                    <strong id="tempo">00:00</strong>
+                </div>
+
+                <div class="stat-card">
+                    <span class="stat-label">Acertos</span>
+                    <strong id="acertos">0/4</strong>
+                </div>
+            </div>
+
+            <div class="nivel-selector">
+                <button class="nivel-btn ativo" data-pares="4">
+                    <span>Fácil</span>
+                    <small>4 pares</small>
+                </button>
+
+                <button class="nivel-btn" data-pares="6">
+                    <span>Médio</span>
+                    <small>6 pares</small>
+                </button>
+
+                <button class="nivel-btn" data-pares="8">
+                    <span>Difícil</span>
+                    <small>8 pares</small>
+                </button>
+            </div>
+
+            <div id="gameBoard" class="game-board"></div>
+
+        </section>
+
+    </main>
+
+    <div id="vitoria" class="modal-vitoria">
+        <div class="modal-card">
+            <span class="modal-icon">🏆</span>
+
+            <h2>Excelente memória!</h2>
+
+            <p>
+                Você completou o desafio de Libras.
+            </p>
+
+            <div class="modal-result">
+                <span>Movimentos: <strong id="finalMovimentos">0</strong></span>
+                <span>Tempo: <strong id="finalTempo">00:00</strong></span>
+            </div>
+
+            <button class="btn-reiniciar" onclick="init()">
+                Jogar novamente
+            </button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+
+</body>
+</html>
