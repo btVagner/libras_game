@@ -1,103 +1,153 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Jogo da Memória Libras</title>
-
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
 
-    <main class="page">
-
-        <section class="hero">
-            <div class="hero-badge">
-                LIBRAS • Desafio Visual
+<body class="tema-saudacao">
+    <header class="topbar">
+        <div class="topbar-brand">
+            <img src="{{ url_for('static', filename='imagem/libras.png') }}" alt="Libras">
+            <div>
+                <strong>Jogo da Memória Libras</strong>
+                <span>Jogador: <b id="nomeAtual">-</b></span>
             </div>
+        </div>
 
-            <h1>Jogo da Memória</h1>
+        <nav class="topbar-actions">
+            <button id="verJogoBtn" class="topbar-btn ativo" type="button">Jogo</button>
+            <button id="verRankingBtn" class="topbar-btn" type="button">Ranking</button>
+            <button id="trocarNomeBtn" class="topbar-btn ghost" type="button">Trocar nome</button>
+        </nav>
+    </header>
 
-            <p>
-                Combine o emoji com o sinal correspondente em Libras e teste sua memória visual.
-            </p>
+    <main class="main-shell">
+        <section id="jogoView" class="view ativa">
+            <section class="game-header">
+                <div>
+                    <p class="eyebrow">Escolha um bloco</p>
+                    <h1>Associe a palavra ao sinal em Libras</h1>
+                    <p id="blocoDescricao">
+                        Sinais básicos usados no início de uma comunicação.
+                    </p>
+                </div>
+
+                <div class="score-panel">
+                    <div>
+                        <span>Tempo</span>
+                        <strong id="tempo">00:00</strong>
+                    </div>
+
+                    <div>
+                        <span>Movimentos</span>
+                        <strong id="movimentos">0</strong>
+                    </div>
+
+                    <div>
+                        <span>Pares</span>
+                        <strong id="paresEncontrados">0/4</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="blocos-panel">
+                <button class="nivel-btn ativo" data-pares="4" data-bloco="saudacao" type="button">
+                    <span>Saudações</span>
+                    <small>4 sinais</small>
+                </button>
+
+                <button class="nivel-btn" data-pares="8" data-bloco="material-escolar" type="button">
+                    <span>Material Escolar</span>
+                    <small>8 sinais</small>
+                </button>
+
+                <button class="nivel-btn" data-pares="8" data-bloco="meses" type="button">
+                    <span>Meses</span>
+                    <small>8 sinais</small>
+                </button>
+            </section>
+
+            <section class="game-actions">
+                <button id="iniciarBtn" class="primary-btn" type="button">Iniciar partida</button>
+                <button id="reiniciarBtn" class="secondary-btn" type="button">Reiniciar</button>
+                <div id="mensagem" class="mensagem">Clique em iniciar para jogar.</div>
+            </section>
+
+            <section class="board-card">
+                <div id="previewBox" class="preview-box hidden">
+                    <span>Memorize</span>
+                    <strong id="previewContador">5</strong>
+                </div>
+
+                <div id="tabuleiro" class="tabuleiro vazio">
+                    <div class="empty-state">
+                        <img src="{{ url_for('static', filename='imagem/libras.png') }}" alt="Libras">
+                        <h2>Pronto para jogar?</h2>
+                        <p>Escolha um bloco e clique em iniciar.</p>
+                    </div>
+                </div>
+            </section>
         </section>
 
-        <section class="panel">
+        <section id="rankingView" class="view">
+            <section class="ranking-card">
+                <div class="ranking-title">
+                    <div>
+                        <p class="eyebrow">Resultados</p>
+                        <h1>Ranking</h1>
+                        <p>
+                            Ranking salvo neste navegador. A ordenação considera menor tempo e, em caso de empate, menos movimentos.
+                        </p>
+                    </div>
 
-            <div class="instruction-box">
-                <strong>Como jogar:</strong>
-                observe as cartas abertas no início, memorize os sinais e encontre o emoji correspondente.
-            </div>
-
-            <div id="avisoMemoria" class="memory-alert">
-                Memorize os sinais!
-            </div>
-
-            <div class="stats">
-                <div class="stat-card">
-                    <span class="stat-label">Movimentos</span>
-                    <strong id="movimentos">0</strong>
                 </div>
 
-                <div class="stat-card">
-                    <span class="stat-label">Tempo</span>
-                    <strong id="tempo">00:00</strong>
+                <div class="ranking-tabs">
+                    <button class="ranking-tab ativo" data-ranking-bloco="saudacao" type="button">Saudações</button>
+                    <button class="ranking-tab" data-ranking-bloco="material-escolar" type="button">Material Escolar</button>
+                    <button class="ranking-tab" data-ranking-bloco="meses" type="button">Meses</button>
                 </div>
 
-                <div class="stat-card">
-                    <span class="stat-label">Acertos</span>
-                    <strong id="acertos">0/4</strong>
+                <div class="ranking-table-wrap">
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>Posição</th>
+                                <th>Nome</th>
+                                <th>Tempo</th>
+                                <th>Movimentos</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="rankingBody">
+                            <tr>
+                                <td colspan="5">Nenhum resultado salvo ainda.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-
-            <div class="nivel-selector">
-                <button class="nivel-btn ativo" data-pares="4">
-                    <span>Fácil</span>
-                    <small>4 pares</small>
-                </button>
-
-                <button class="nivel-btn" data-pares="6">
-                    <span>Médio</span>
-                    <small>6 pares</small>
-                </button>
-
-                <button class="nivel-btn" data-pares="8">
-                    <span>Difícil</span>
-                    <small>8 pares</small>
-                </button>
-            </div>
-
-            <div id="gameBoard" class="game-board"></div>
-
+            </section>
         </section>
-
     </main>
 
-    <div id="vitoria" class="modal-vitoria">
+    <div id="finalModal" class="modal-overlay hidden">
         <div class="modal-card">
-            <span class="modal-icon">🏆</span>
+            <h2>Parabéns!</h2>
+            <p id="finalTexto">Você concluiu a partida.</p>
 
-            <h2>Excelente memória!</h2>
-
-            <p>
-                Você completou o desafio de Libras.
-            </p>
-
-            <div class="modal-result">
-                <span>Movimentos: <strong id="finalMovimentos">0</strong></span>
-                <span>Tempo: <strong id="finalTempo">00:00</strong></span>
+            <div class="modal-actions">
+                <button id="modalVerRankingBtn" class="primary-btn" type="button">Ver ranking</button>
+                <button id="modalContinuarBtn" class="secondary-btn" type="button">Continuar jogando</button>
             </div>
-
-            <button class="btn-reiniciar" onclick="init()">
-                Jogar novamente
-            </button>
         </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/game.js') }}"></script>
-
 </body>
+
 </html>

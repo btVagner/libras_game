@@ -1,302 +1,670 @@
-let dadosCartas = {};
-let cartasDinamicas = [];
-let cartasViradas = [];
+let cartasDisponiveis = {};
+let blocosDisponiveis = {};
 
+let blocoAtual = "saudacao";
 let totalPares = 4;
-let acertos = 0;
+
+let deck = [];
+let primeiraCarta = null;
+let segundaCarta = null;
+
+let bloqueado = false;
+let previewAtivo = false;
+let jogoIniciado = false;
+
 let movimentos = 0;
-let tempo = 0;
+let paresEncontrados = 0;
+let segundos = 0;
+
 let timer = null;
-let jogoBloqueado = false;
+let previewTimer = null;
+let rodadaAtual = 0;
 
-const gameBoard = document.getElementById("gameBoard");
-const movimentosEl = document.getElementById("movimentos");
+let jogadorNome = "";
+let rankingBlocoAtual = "saudacao";
+
+const STORAGE_NOME = "jogoLibrasNomeJogador";
+const STORAGE_RANKING = "jogoLibrasRanking";
+
+const nomeAtual = document.getElementById("nomeAtual");
+
+const jogoView = document.getElementById("jogoView");
+const rankingView = document.getElementById("rankingView");
+
+const verJogoBtn = document.getElementById("verJogoBtn");
+const verRankingBtn = document.getElementById("verRankingBtn");
+const trocarNomeBtn = document.getElementById("trocarNomeBtn");
+
+const tabuleiro = document.getElementById("tabuleiro");
+const mensagem = document.getElementById("mensagem");
+
 const tempoEl = document.getElementById("tempo");
-const acertosEl = document.getElementById("acertos");
-const avisoMemoriaEl = document.getElementById("avisoMemoria");
-const vitoriaEl = document.getElementById("vitoria");
-const finalMovimentosEl = document.getElementById("finalMovimentos");
-const finalTempoEl = document.getElementById("finalTempo");
+const movimentosEl = document.getElementById("movimentos");
+const paresEncontradosEl = document.getElementById("paresEncontrados");
+
+const previewBox = document.getElementById("previewBox");
+const previewContador = document.getElementById("previewContador");
+
+const iniciarBtn = document.getElementById("iniciarBtn");
+const reiniciarBtn = document.getElementById("reiniciarBtn");
+
+const blocoDescricao = document.getElementById("blocoDescricao");
+
+const rankingBody = document.getElementById("rankingBody");
+
+const finalModal = document.getElementById("finalModal");
+const finalTexto = document.getElementById("finalTexto");
+const modalVerRankingBtn = document.getElementById("modalVerRankingBtn");
+const modalContinuarBtn = document.getElementById("modalContinuarBtn");
 
 
-async function carregarCartas() {
-    const response = await fetch("/api/cartas");
+document.addEventListener("DOMContentLoaded", async () => {
+    protegerTelaDoJogo();
+    configurarEventos();
 
-    if (!response.ok) {
-        throw new Error("Erro ao carregar cartas do servidor.");
+    await carregarDados();
+
+    atualizarInfoBloco();
+    aplicarTemaDoBloco();
+    renderizarRanking();
+});
+
+
+function protegerTelaDoJogo() {
+    jogadorNome = localStorage.getItem(STORAGE_NOME) || "";
+
+    if (!jogadorNome.trim()) {
+        window.location.href = "/";
+        return;
     }
 
-    dadosCartas = await response.json();
+    nomeAtual.textContent = jogadorNome;
 }
 
 
-async function init() {
+async function carregarDados() {
     try {
-        if (Object.keys(dadosCartas).length === 0) {
-            await carregarCartas();
-        }
+        const resposta = await fetch("/api/cartas");
+        const dados = await resposta.json();
 
-        const btnAtivo = document.querySelector(".nivel-btn.ativo");
-        totalPares = parseInt(btnAtivo.dataset.pares);
-
-        resetarEstado();
-        criarJogo();
-        preCarregarGifs();
-        preVisualizacao();
-
-    } catch (error) {
-        console.error(error);
-        alert("Não foi possível iniciar o jogo. Verifique se o Flask está rodando corretamente.");
+        cartasDisponiveis = dados.cartas || {};
+        blocosDisponiveis = dados.blocos || {};
+    } catch (erro) {
+        console.error("Erro ao carregar cartas:", erro);
+        mostrarMensagem("Não foi possível carregar as cartas do jogo.", "erro");
     }
 }
 
 
-function resetarEstado() {
-    clearInterval(timer);
+function configurarEventos() {
+    document.querySelectorAll(".nivel-btn").forEach((botao) => {
+        botao.addEventListener("click", () => {
+            document.querySelectorAll(".nivel-btn").forEach((btn) => {
+                btn.classList.remove("ativo");
+            });
 
-    cartasDinamicas = [];
-    cartasViradas = [];
+            botao.classList.add("ativo");
 
-    acertos = 0;
+            blocoAtual = botao.dataset.bloco;
+            totalPares = Number(botao.dataset.pares);
+
+            rodadaAtual++;
+            limparTimers();
+            resetarEstadoVisual();
+
+            atualizarInfoBloco();
+            aplicarTemaDoBloco();
+
+            mostrarMensagem("Bloco selecionado. Clique em iniciar para jogar.", "info");
+        });
+    });
+
+    document.querySelectorAll(".ranking-tab").forEach((botao) => {
+        botao.addEventListener("click", () => {
+            document.querySelectorAll(".ranking-tab").forEach((btn) => {
+                btn.classList.remove("ativo");
+            });
+
+            botao.classList.add("ativo");
+            rankingBlocoAtual = botao.dataset.rankingBloco;
+            renderizarRanking();
+        });
+    });
+
+    iniciarBtn.addEventListener("click", iniciarPartida);
+    reiniciarBtn.addEventListener("click", iniciarPartida);
+
+    verJogoBtn.addEventListener("click", mostrarTelaJogo);
+    verRankingBtn.addEventListener("click", mostrarTelaRanking);
+
+    trocarNomeBtn.addEventListener("click", () => {
+        window.location.href = "/";
+    });
+
+
+    modalVerRankingBtn.addEventListener("click", () => {
+        fecharModalFinal();
+        mostrarTelaRanking();
+    });
+
+    modalContinuarBtn.addEventListener("click", () => {
+        fecharModalFinal();
+        mostrarTelaJogo();
+    });
+}
+
+
+function mostrarTelaJogo() {
+    jogoView.classList.add("ativa");
+    rankingView.classList.remove("ativa");
+
+    verJogoBtn.classList.add("ativo");
+    verRankingBtn.classList.remove("ativo");
+}
+
+
+function mostrarTelaRanking() {
+    rankingBlocoAtual = blocoAtual;
+    ativarAbaRankingDoBlocoAtual();
+    renderizarRanking();
+
+    jogoView.classList.remove("ativa");
+    rankingView.classList.add("ativa");
+
+    verJogoBtn.classList.remove("ativo");
+    verRankingBtn.classList.add("ativo");
+}
+
+
+function iniciarPartida() {
+    rodadaAtual++;
+    const idRodada = rodadaAtual;
+
+    limparTimers();
+
     movimentos = 0;
-    tempo = 0;
-    jogoBloqueado = true;
+    paresEncontrados = 0;
+    segundos = 0;
 
-    gameBoard.innerHTML = "";
-    gameBoard.style.pointerEvents = "none";
+    primeiraCarta = null;
+    segundaCarta = null;
 
-    movimentosEl.textContent = "0";
-    acertosEl.textContent = `0/${totalPares}`;
-    tempoEl.textContent = "00:00";
+    bloqueado = true;
+    previewAtivo = true;
+    jogoIniciado = true;
 
-    vitoriaEl.classList.remove("mostrar");
+    atualizarPlacar();
+    montarDeck();
+    renderizarTabuleiro();
+
+    mostrarMensagem("Observe as cartas antes de começar.", "info");
+    preVisualizacao(idRodada);
 }
 
 
-function criarJogo() {
-    const todasChaves = Object.keys(dadosCartas).sort(() => Math.random() - 0.5);
-    const chavesSelecionadas = todasChaves.slice(0, totalPares);
+function montarDeck() {
+    const bloco = blocosDisponiveis[blocoAtual];
 
-    chavesSelecionadas.forEach((tipo) => {
-        const item = dadosCartas[tipo];
-
-        cartasDinamicas.push({
-            tipo,
-            nome: item.nome,
-            conteudo: item.emoji,
-            tipoCard: "emoji"
-        });
-
-        cartasDinamicas.push({
-            tipo,
-            nome: item.nome,
-            conteudo: `/static/${item.gif}`,
-            tipoCard: "gif"
-        });
-    });
-
-    embaralhar(cartasDinamicas);
-
-    cartasDinamicas.forEach((carta, index) => {
-        const cardEl = document.createElement("div");
-
-        cardEl.className = "card virada";
-        cardEl.dataset.index = index;
-
-        const conteudo = montarConteudoCarta(carta);
-
-        cardEl.innerHTML = `
-            <div class="card-inner">
-                <div class="card-front">🧠</div>
-                <div class="card-back">${conteudo}</div>
-            </div>
-        `;
-
-        cardEl.addEventListener("click", () => virarCarta(index, cardEl));
-
-        gameBoard.appendChild(cardEl);
-    });
-}
-
-
-function montarConteudoCarta(carta) {
-    if (carta.tipoCard === "emoji") {
-        return `
-            <div class="emoji-box">
-                <span class="emoji">${carta.conteudo}</span>
-                <div class="legenda-emoji">${carta.nome}</div>
-            </div>
-        `;
+    if (!bloco) {
+        deck = [];
+        return;
     }
 
-    return `
-        <img
-            src="${carta.conteudo}"
-            alt="Sinal de ${carta.nome} em Libras"
-            class="gif-sinal"
-        >
-    `;
+    const cartasDoBloco = bloco.cartas.slice(0, bloco.pares);
+
+    deck = [];
+
+    cartasDoBloco.forEach((chave) => {
+        const carta = cartasDisponiveis[chave];
+
+        if (!carta) return;
+
+        deck.push({
+            id: `${chave}-emoji`,
+            tipo: chave,
+            tipoCard: "emoji",
+            nome: carta.nome,
+            emoji: carta.emoji,
+            gif: carta.gif,
+            matched: false
+        });
+
+        deck.push({
+            id: `${chave}-gif`,
+            tipo: chave,
+            tipoCard: "gif",
+            nome: carta.nome,
+            emoji: carta.emoji,
+            gif: carta.gif,
+            matched: false
+        });
+    });
+
+    embaralhar(deck);
 }
 
 
 function embaralhar(lista) {
     for (let i = lista.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-
         [lista[i], lista[j]] = [lista[j], lista[i]];
     }
 }
 
 
-function preCarregarGifs() {
-    cartasDinamicas
-        .filter((carta) => carta.tipoCard === "gif")
-        .forEach((carta) => {
-            const img = new Image();
-            img.src = carta.conteudo;
-        });
+function renderizarTabuleiro() {
+    tabuleiro.innerHTML = "";
+    tabuleiro.classList.remove("vazio");
+
+    if (totalPares >= 8) {
+        tabuleiro.classList.add("tabuleiro-grande");
+    } else {
+        tabuleiro.classList.remove("tabuleiro-grande");
+    }
+
+    deck.forEach((carta, index) => {
+        const card = document.createElement("button");
+        card.className = "card flipped";
+        card.type = "button";
+        card.dataset.index = index;
+
+        const conteudoFrente = carta.tipoCard === "emoji"
+            ? `
+                <div class="emoji-card">${carta.emoji}</div>
+                <strong>${carta.nome}</strong>
+              `
+            : `
+                <img src="/static/${carta.gif}" alt="Sinal de ${carta.nome}" class="gif-card">
+                <strong>${carta.nome}</strong>
+              `;
+
+        card.innerHTML = `
+            <div class="card-inner">
+                <div class="card-face card-front">
+                    ${conteudoFrente}
+                </div>
+
+                <div class="card-face card-back">
+                    <span>LIBRAS</span>
+                </div>
+            </div>
+        `;
+
+        card.addEventListener("click", () => virarCarta(index));
+
+        tabuleiro.appendChild(card);
+    });
 }
 
 
-function preVisualizacao() {
-    let segundos = 5;
+function preVisualizacao(idRodada) {
+    let tempoPreview = obterTempoPreview();
 
-    avisoMemoriaEl.style.display = "block";
-    avisoMemoriaEl.textContent = `Memorize os sinais! Fechando em: ${segundos}s`;
+    previewBox.classList.remove("hidden");
+    previewContador.textContent = tempoPreview;
 
-    const contagem = setInterval(() => {
-        segundos--;
-
-        if (segundos <= 0) {
-            clearInterval(contagem);
-
-            avisoMemoriaEl.style.display = "none";
-
-            document.querySelectorAll(".card").forEach((card) => {
-                card.classList.remove("virada");
-            });
-
-            jogoBloqueado = false;
-            gameBoard.style.pointerEvents = "auto";
-
-            iniciarTimer();
-
+    previewTimer = setInterval(() => {
+        if (idRodada !== rodadaAtual) {
             return;
         }
 
-        avisoMemoriaEl.textContent = `Memorize os sinais! Fechando em: ${segundos}s`;
+        tempoPreview--;
+        previewContador.textContent = tempoPreview;
+
+        if (tempoPreview <= 0) {
+            clearInterval(previewTimer);
+            previewTimer = null;
+
+            if (idRodada !== rodadaAtual) {
+                return;
+            }
+
+            document.querySelectorAll(".card").forEach((card) => {
+                card.classList.remove("flipped");
+            });
+
+            previewBox.classList.add("hidden");
+            previewAtivo = false;
+            bloqueado = false;
+
+            iniciarTimer();
+            mostrarMensagem("Agora encontre os pares correspondentes.", "info");
+        }
     }, 1000);
 }
 
 
-function virarCarta(index, cardEl) {
-    if (jogoBloqueado) return;
-    if (cartasViradas.length === 2) return;
-    if (cardEl.classList.contains("virada")) return;
-    if (cardEl.classList.contains("acertada")) return;
+function obterTempoPreview() {
+    if (totalPares >= 8) return 12;
+    if (totalPares >= 5) return 8;
 
-    cardEl.classList.add("virada");
-
-    cartasViradas.push({
-        index,
-        el: cardEl
-    });
-
-    if (cartasViradas.length === 2) {
-        movimentos++;
-        movimentosEl.textContent = movimentos;
-
-        checarPar();
-    }
+    return 5;
 }
 
 
-function checarPar() {
-    jogoBloqueado = true;
+function virarCarta(index) {
+    if (!jogoIniciado || bloqueado || previewAtivo) return;
 
-    const [c1, c2] = cartasViradas;
+    const carta = deck[index];
+    const cardEl = document.querySelector(`[data-index="${index}"]`);
 
-    const carta1 = cartasDinamicas[c1.index];
-    const carta2 = cartasDinamicas[c2.index];
+    if (!carta || !cardEl) return;
+    if (carta.matched || cardEl.classList.contains("flipped")) return;
+
+    cardEl.classList.add("flipped");
+
+    if (!primeiraCarta) {
+        primeiraCarta = { carta, index, elemento: cardEl };
+        return;
+    }
+
+    segundaCarta = { carta, index, elemento: cardEl };
+    movimentos++;
+    atualizarPlacar();
+
+    verificarPar();
+}
+
+
+function verificarPar() {
+    bloqueado = true;
+
+    const carta1 = primeiraCarta.carta;
+    const carta2 = segundaCarta.carta;
 
     const ehPar =
         carta1.tipo === carta2.tipo &&
         carta1.tipoCard !== carta2.tipoCard;
 
     if (ehPar) {
-        setTimeout(() => {
-            c1.el.classList.add("acertada", "bloqueada");
-            c2.el.classList.add("acertada", "bloqueada");
+        carta1.matched = true;
+        carta2.matched = true;
 
-            acertos++;
-            acertosEl.textContent = `${acertos}/${totalPares}`;
+        primeiraCarta.elemento.classList.add("matched");
+        segundaCarta.elemento.classList.add("matched");
 
-            cartasViradas = [];
-            jogoBloqueado = false;
+        paresEncontrados++;
+        atualizarPlacar();
 
-            if (acertos === totalPares) {
-                finalizarJogo();
-            }
-        }, 350);
+        primeiraCarta = null;
+        segundaCarta = null;
+        bloqueado = false;
+
+        if (paresEncontrados === totalPares) {
+            finalizarPartida();
+        }
 
         return;
     }
 
     setTimeout(() => {
-        c1.el.classList.remove("virada");
-        c2.el.classList.remove("virada");
+        primeiraCarta.elemento.classList.remove("flipped");
+        segundaCarta.elemento.classList.remove("flipped");
 
-        cartasViradas = [];
-        jogoBloqueado = false;
-    }, 900);
+        primeiraCarta = null;
+        segundaCarta = null;
+        bloqueado = false;
+    }, 850);
 }
 
 
 function iniciarTimer() {
-    clearInterval(timer);
+    limparTimerPrincipal();
 
     timer = setInterval(() => {
-        tempo++;
-
-        tempoEl.textContent = formatarTempo(tempo);
+        segundos++;
+        tempoEl.textContent = formatarTempo(segundos);
     }, 1000);
 }
 
 
-function finalizarJogo() {
-    clearInterval(timer);
+function finalizarPartida() {
+    limparTimerPrincipal();
 
-    jogoBloqueado = true;
-    gameBoard.style.pointerEvents = "none";
+    bloqueado = true;
+    jogoIniciado = false;
 
-    finalMovimentosEl.textContent = movimentos;
-    finalTempoEl.textContent = formatarTempo(tempo);
+    salvarResultadoRanking();
 
-    setTimeout(() => {
-        vitoriaEl.classList.add("mostrar");
-    }, 500);
+    const textoFinal = `${jogadorNome}, você concluiu em ${formatarTempo(segundos)} com ${movimentos} movimentos.`;
+
+    mostrarMensagem(`Parabéns! ${textoFinal}`, "sucesso");
+
+    finalTexto.textContent = textoFinal;
+    abrirModalFinal();
+
+    rankingBlocoAtual = blocoAtual;
+    ativarAbaRankingDoBlocoAtual();
+    renderizarRanking();
 }
 
 
-function formatarTempo(segundosTotais) {
-    const minutos = Math.floor(segundosTotais / 60).toString().padStart(2, "0");
-    const segundos = (segundosTotais % 60).toString().padStart(2, "0");
-
-    return `${minutos}:${segundos}`;
+function abrirModalFinal() {
+    finalModal.classList.remove("hidden");
 }
 
 
-document.querySelectorAll(".nivel-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-        document.querySelectorAll(".nivel-btn").forEach((item) => {
-            item.classList.remove("ativo");
-        });
+function fecharModalFinal() {
+    finalModal.classList.add("hidden");
+}
 
-        btn.classList.add("ativo");
 
-        init();
+function atualizarPlacar() {
+    tempoEl.textContent = formatarTempo(segundos);
+    movimentosEl.textContent = movimentos;
+    paresEncontradosEl.textContent = `${paresEncontrados}/${totalPares}`;
+}
+
+
+function formatarTempo(totalSegundos) {
+    const minutos = Math.floor(totalSegundos / 60);
+    const segundosRestantes = totalSegundos % 60;
+
+    return `${String(minutos).padStart(2, "0")}:${String(segundosRestantes).padStart(2, "0")}`;
+}
+
+
+function formatarData(dataIso) {
+    const data = new Date(dataIso);
+
+    return data.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
     });
-});
+}
 
 
-window.addEventListener("load", init);
+function mostrarMensagem(texto, tipo = "info") {
+    mensagem.textContent = texto;
+    mensagem.className = `mensagem ${tipo}`;
+}
+
+
+function limparTimers() {
+    limparTimerPrincipal();
+
+    if (previewTimer) {
+        clearInterval(previewTimer);
+        previewTimer = null;
+    }
+
+    previewBox.classList.add("hidden");
+}
+
+
+function limparTimerPrincipal() {
+    if (timer) {
+        clearInterval(timer);
+        timer = null;
+    }
+}
+
+
+function resetarEstadoVisual() {
+    jogoIniciado = false;
+    previewAtivo = false;
+    bloqueado = false;
+
+    movimentos = 0;
+    paresEncontrados = 0;
+    segundos = 0;
+
+    primeiraCarta = null;
+    segundaCarta = null;
+
+    atualizarPlacar();
+
+    tabuleiro.classList.add("vazio");
+    tabuleiro.classList.remove("tabuleiro-grande");
+
+    tabuleiro.innerHTML = `
+        <div class="empty-state">
+            <img src="/static/imagem/libras.png" alt="Libras">
+            <h2>Bloco alterado</h2>
+            <p>Clique em iniciar para começar uma nova partida.</p>
+        </div>
+    `;
+}
+
+
+function atualizarInfoBloco() {
+    const bloco = blocosDisponiveis[blocoAtual];
+
+    if (!bloco) return;
+
+    blocoDescricao.textContent = bloco.descricao;
+    totalPares = bloco.pares;
+    paresEncontradosEl.textContent = `0/${totalPares}`;
+}
+
+
+function aplicarTemaDoBloco() {
+    document.body.classList.remove(
+        "tema-saudacao",
+        "tema-material-escolar",
+        "tema-meses"
+    );
+
+    if (blocoAtual === "saudacao") {
+        document.body.classList.add("tema-saudacao");
+    }
+
+    if (blocoAtual === "material-escolar") {
+        document.body.classList.add("tema-material-escolar");
+    }
+
+    if (blocoAtual === "meses") {
+        document.body.classList.add("tema-meses");
+    }
+}
+
+
+function obterRankingCompleto() {
+    const rankingSalvo = localStorage.getItem(STORAGE_RANKING);
+
+    if (!rankingSalvo) {
+        return criarRankingVazio();
+    }
+
+    try {
+        const ranking = JSON.parse(rankingSalvo);
+
+        return {
+            "saudacao": ranking["saudacao"] || [],
+            "material-escolar": ranking["material-escolar"] || [],
+            "meses": ranking["meses"] || []
+        };
+    } catch (erro) {
+        console.error("Erro ao ler ranking:", erro);
+        return criarRankingVazio();
+    }
+}
+
+
+function criarRankingVazio() {
+    return {
+        "saudacao": [],
+        "material-escolar": [],
+        "meses": []
+    };
+}
+
+
+function salvarResultadoRanking() {
+    const ranking = obterRankingCompleto();
+
+    const resultado = {
+        nome: jogadorNome,
+        tempo: segundos,
+        movimentos: movimentos,
+        data: new Date().toISOString()
+    };
+
+    ranking[blocoAtual].push(resultado);
+
+    ranking[blocoAtual].sort((a, b) => {
+        if (a.tempo !== b.tempo) {
+            return a.tempo - b.tempo;
+        }
+
+        return a.movimentos - b.movimentos;
+    });
+
+    ranking[blocoAtual] = ranking[blocoAtual].slice(0, 10);
+
+    localStorage.setItem(STORAGE_RANKING, JSON.stringify(ranking));
+}
+
+
+function renderizarRanking() {
+    const ranking = obterRankingCompleto();
+    const resultados = ranking[rankingBlocoAtual] || [];
+
+    rankingBody.innerHTML = "";
+
+    if (resultados.length === 0) {
+        rankingBody.innerHTML = `
+            <tr>
+                <td colspan="5">Nenhum resultado salvo ainda.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    resultados.forEach((item, index) => {
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${index + 1}º</td>
+            <td>${escaparHtml(item.nome)}</td>
+            <td>${formatarTempo(item.tempo)}</td>
+            <td>${item.movimentos}</td>
+            <td>${formatarData(item.data)}</td>
+        `;
+
+        rankingBody.appendChild(tr);
+    });
+}
+
+
+function ativarAbaRankingDoBlocoAtual() {
+    document.querySelectorAll(".ranking-tab").forEach((botao) => {
+        botao.classList.remove("ativo");
+
+        if (botao.dataset.rankingBloco === blocoAtual) {
+            botao.classList.add("ativo");
+        }
+    });
+}
+
+
+
+
+function escaparHtml(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto;
+    return div.innerHTML;
+}

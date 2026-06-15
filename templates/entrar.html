@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrar - Jogo da Memória Libras</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="login-page">
+    <main class="login-shell">
+        <section class="login-card">
+            <div class="login-logo">
+                <img src="{{ url_for('static', filename='imagem/libras.png') }}" alt="Libras">
+            </div>
+
+            <p class="login-eyebrow">Jogo educativo</p>
+
+            <h1>Jogo da Memória Libras</h1>
+
+            <p class="login-description">
+                Informe seu nome para começar a partida e registrar seu resultado no ranking local.
+            </p>
+
+            <form id="formNome" class="login-form">
+                <label for="nomeJogador">Nome do jogador</label>
+
+                <input 
+                    type="text" 
+                    id="nomeJogador" 
+                    placeholder="Digite seu nome"
+                    autocomplete="off"
+                    maxlength="30"
+                >
+
+                <button type="submit">Começar jogo</button>
+
+                <small id="erroNome"></small>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const STORAGE_NOME = "jogoLibrasNomeJogador";
+
+        const formNome = document.getElementById("formNome");
+        const nomeJogador = document.getElementById("nomeJogador");
+        const erroNome = document.getElementById("erroNome");
+
+        const nomeSalvo = localStorage.getItem(STORAGE_NOME);
+
+        if (nomeSalvo) {
+            nomeJogador.value = nomeSalvo;
+        }
+
+        formNome.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const nome = nomeJogador.value.trim();
+
+            if (!nome) {
+                erroNome.textContent = "Digite seu nome para continuar.";
+                nomeJogador.focus();
+                return;
+            }
+
+            localStorage.setItem(STORAGE_NOME, nome);
+            window.location.href = "/jogo";
+        });
+    </script>
+</body>
+
+</html>
