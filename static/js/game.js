@@ -233,7 +233,7 @@ function montarDeck() {
             id: `${chave}-gif`,
             tipo: chave,
             tipoCard: "gif",
-            nome: carta.nome,
+            nome: "-",
             emoji: carta.emoji,
             gif: carta.gif,
             matched: false
